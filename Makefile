@@ -1,8 +1,22 @@
 ifeq ($(strip $(DEVKITXENON)),)
 $(error "export DEVKITXENON=/usr/local/xenon")
 endif
-$(shell ls $(DEVKITXENON) >&2; echo ---RULES--- >&2; cat $(DEVKITXENON)/rules >&2)
-TARGET := main
-OBJS := main.o
 include $(DEVKITXENON)/rules
+.RECIPEPREFIX = >
+
+TARGET  := main
+OBJS    := main.o
+DEPSDIR := .deps
+$(shell mkdir -p $(DEPSDIR))
+CFLAGS  := -O2 -Wall $(MACHDEP) -I$(LIBXENON_INC)
+
 all: $(TARGET).elf32
+
+$(TARGET).elf: $(OBJS)
+> @echo linking ... $@
+> $(CC) $^ $(MACHDEP) -Wl,-n -Wl,-T,$(LDSCRIPT) -L$(LIBXENON_LIB) -lxenon -lm -o $@
+
+clean:
+> rm -rf *.o *.elf *.elf32 $(DEPSDIR)
+
+-include $(DEPSDIR)/*.d
