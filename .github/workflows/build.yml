@@ -1,0 +1,50 @@
+name: build
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 340
+    env:
+      DEVKITXENON: /usr/local/xenon
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare dir
+        run: |
+          sudo mkdir -p $DEVKITXENON
+          sudo chown -R $USER $DEVKITXENON
+      - name: Restore toolchain
+        id: tc
+        uses: actions/cache/restore@v4
+        with:
+          path: /usr/local/xenon
+          key: xenon-toolchain-v1
+      - name: Build toolchain
+        if: steps.tc.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/Free60Project/libxenon.git ~/libxenon
+          cd ~/libxenon/toolchain
+          chmod +x build-xenon-toolchain
+          ./build-xenon-toolchain toolchain
+          ./build-xenon-toolchain libxenon
+          ./build-xenon-toolchain libs
+          find ~/libxenon -iname 'Makefile*' | head -20 || true
+      - name: Save toolchain
+        if: steps.tc.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /usr/local/xenon
+          key: xenon-toolchain-v1
+      - name: Build app
+        run: |
+          export PATH=$PATH:$DEVKITXENON/bin:$DEVKITXENON/usr/bin
+          make
+          ls -la
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xbox360-app
+          path: |
+            *.elf
+            *.elf32
+            *.xex
